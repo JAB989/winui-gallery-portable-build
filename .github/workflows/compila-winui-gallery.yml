@@ -1,0 +1,93 @@
+name: WinUI 3 Gallery originale - ZIP portabile x64
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/compila-winui-gallery.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  crea-programma:
+    name: Compila sorgenti Microsoft e pubblica ZIP
+    runs-on: windows-2025
+    timeout-minutes: 90
+
+    steps:
+      - name: Scarica i sorgenti originali Microsoft (release bloccata)
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/WinUI-Gallery
+          ref: v3.0.4
+          path: WinUI-Gallery
+          persist-credentials: false
+
+      - name: Prepara .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Configura i feed NuGet pubblici
+        shell: pwsh
+        run: |
+          $configPath = Join-Path $env:GITHUB_WORKSPACE 'WinUI-Gallery/nuget.config'
+          @'
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+              <add key="MUX-Dependencies" value="https://pkgs.dev.azure.com/shine-oss/microsoft-ui-xaml/_packaging/MUX-Dependencies/nuget/v3/index.json" />
+            </packageSources>
+          </configuration>
+          '@ | Set-Content -LiteralPath $configPath -Encoding utf8
+
+      - name: Compila WinUI Gallery portabile - Windows 10 x64
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $project = Join-Path $env:GITHUB_WORKSPACE 'WinUI-Gallery/WinUIGallery/WinUIGallery.csproj'
+          $out = Join-Path $env:GITHUB_WORKSPACE 'Programma-Portabile'
+          dotnet publish $project `
+            --configuration Release-Unpackaged `
+            --runtime win-x64 `
+            --self-contained true `
+            --output $out `
+            -p:Platform=x64 `
+            -p:WindowsPackageType=None `
+            -p:WindowsAppSDKSelfContained=true `
+            -p:PublishSingleFile=false `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false `
+            -p:AppxPackageSigningEnabled=false
+          if ($LASTEXITCODE -ne 0) { throw "Compilazione fallita (exit code $LASTEXITCODE). Leggere il log di GitHub Actions." }
+          $exe = Join-Path $out 'WinUIGallery.exe'
+          if (!(Test-Path -LiteralPath $exe)) { throw "Non e' stato trovato WinUIGallery.exe nella cartella pubblicata." }
+
+      - name: Prepara la cartella pronta da avviare
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:GITHUB_WORKSPACE 'Programma-Portabile'
+          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'WinUI-Gallery/LICENSE') -Destination (Join-Path $out 'LICENZA_MICROSOFT.txt')
+          @'
+          WinUI 3 Gallery - codice originale Microsoft
+          Versione sorgente: v3.0.4
+          Fonte: https://github.com/microsoft/WinUI-Gallery
+          Licenza: MIT (vedere LICENZA_MICROSOFT.txt)
+
+          AVVIO: estrarre completamente lo ZIP e aprire WinUIGallery.exe.
+          Sistema previsto: Windows 10/11 x64. Non occorrono Visual Studio, SDK o Python sul computer di destinazione.
+          Le rifiniture native di Windows 11 non sono disponibili tutte su Windows 10.
+          La compatibilita' reale va verificata sul PC di destinazione.
+          '@ | Set-Content -LiteralPath (Join-Path $out 'LEGGIMI_PRIMA.txt') -Encoding utf8
+
+      - name: Consegna lo ZIP compilato
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinUI3_Gallery_Microsoft_v3.0.4_Portabile_Win10_x64
+          path: Programma-Portabile/
+          retention-days: 14
+          if-no-files-found: error

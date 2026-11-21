@@ -1,0 +1,99 @@
+name: Compila Fluent Mini - Windows portabile
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'MinimalWinUI/**'
+      - '.github/workflows/fluent-mini.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ZIP_NAME: Fluent_Windows.zip
+      RELEASE_TAG: fluent-mini
+    steps:
+      - name: Prendi i sorgenti della app minima
+        uses: actions/checkout@v4
+
+      - name: Prepara .NET 10 nel runner GitHub
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Compila in versione portabile x64 con i controlli WinUI originali
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet publish MinimalWinUI/MiniFluent.csproj --configuration Release --runtime win-x64 --self-contained true --output program `
+            -p:Platform=x64 `
+            -p:WindowsPackageType=None `
+            -p:WindowsAppSDKSelfContained=true `
+            -p:PublishSingleFile=false `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false
+          if ($LASTEXITCODE -ne 0) { throw "Compilazione fallita" }
+          if (!(Test-Path program/MiniFluent.exe)) { throw "MiniFluent.exe mancante" }
+          Get-ChildItem program -Recurse -File | Measure-Object -Property Length -Sum | Select-Object Count, Sum | Format-List
+
+      - name: Rimuovi simboli di debug e aggiungi istruzioni
+        shell: pwsh
+        run: |
+          Get-ChildItem program -Recurse -Filter *.pdb -File | Remove-Item -Force
+          @'
+          FLUENT MINI - COMPONENTI MICROSOFT ORIGINALI
+
+          Estrai TUTTO lo ZIP in una cartella e apri MiniFluent.exe.
+
+          Il programma usa controlli WinUI 3 nativi (TitleBar, NavigationView,
+          MenuBar, ContentDialog, ToggleSwitch ecc), non repliche PyQt.
+          Non richiede installare Visual Studio, SDK o Python sul PC.
+
+          App minima realizzata sul modello del progetto Microsoft:
+          https://github.com/microsoft/winappCli/tree/main/samples/winui-unpackaged-app
+          e documentazione:
+          https://learn.microsoft.com/windows/apps/develop/ui/controls/title-bar
+
+          Windows 10 x64 e Windows 11 x64.
+          Su Windows 10 gli angoli nativi di Windows 11 non sono disponibili.
+          La prova grafica deve essere effettuata sul computer di destinazione.
+          '@ | Set-Content -LiteralPath program/AVVIO.txt -Encoding utf8
+
+      - name: Impacchetta e verifica ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path program/* -DestinationPath $env:ZIP_NAME -CompressionLevel Optimal
+          if (!(Test-Path $env:ZIP_NAME)) { throw "ZIP mancante" }
+          Add-Type -AssemblyName System.IO.Compression
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $env:ZIP_NAME).Path)
+          try {
+             if (-not ($zip.Entries | Where-Object FullName -eq 'MiniFluent.exe')) { throw "EXE non presente nello ZIP" }
+             Write-Host "File nell'archivio: $($zip.Entries.Count)"
+          } finally { $zip.Dispose() }
+          Get-Item $env:ZIP_NAME | Select-Object Name,Length
+
+      - name: Pubblica un download diretto permanente
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+             gh release upload $env:RELEASE_TAG $env:ZIP_NAME --repo $env:GITHUB_REPOSITORY --clobber
+          } else {
+             gh release create $env:RELEASE_TAG $env:ZIP_NAME --repo $env:GITHUB_REPOSITORY --target main --title "Fluent Mini - Windows" --notes "App WinUI 3 minima con componenti Microsoft nativi. Estrarre lo ZIP e aprire MiniFluent.exe. Compilata sul runner Windows; avvio grafico su Windows 10 da verificare."
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Pubblicazione GitHub Release fallita" }
+
+      - name: Conserva anche la build nei risultati GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fluent_Windows
+          path: Fluent_Windows.zip
+          retention-days: 14

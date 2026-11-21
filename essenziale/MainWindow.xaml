@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="WinUIEssenziale.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="WinUI Essenziale">
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Titolo e pulsanti di sistema gestiti da Microsoft WinUI/Windows -->
+        <TitleBar x:Name="AppTitleBar" Title="WinUI Essenziale" Subtitle="Componenti Microsoft" />
+
+        <NavigationView
+            x:Name="Nav"
+            Grid.Row="1"
+            PaneDisplayMode="LeftCompact"
+            CompactPaneLength="48"
+            OpenPaneLength="230"
+            IsBackButtonVisible="Collapsed"
+            IsSettingsVisible="True"
+            SelectionChanged="OnNavSelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Home" Tag="home" Icon="Home" />
+                <NavigationViewItem Content="Controlli" Tag="controls" Icon="AllApps" />
+            </NavigationView.MenuItems>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <Grid Padding="32,24,32,32">
+                    <StackPanel x:Name="HomePanel" Spacing="16">
+                        <TextBlock Text="WinUI Essenziale" Style="{ThemeResource TitleTextBlockStyle}" />
+                        <TextBlock Text="Una finestra Windows con controlli nativi Microsoft, senza tutta la Gallery."
+                                   TextWrapping="Wrap" />
+                        <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
+                                 Title="Componenti reali"
+                                 Message="Barra del titolo, navigazione e controlli forniti dal Windows App SDK." />
+                        <Button Content="Apri i controlli" Click="OnOpenControlsClick" HorizontalAlignment="Left" />
+                    </StackPanel>
+
+                    <StackPanel x:Name="ControlsPanel" Spacing="18" Visibility="Collapsed">
+                        <TextBlock Text="Controlli originali WinUI" Style="{ThemeResource TitleTextBlockStyle}" />
+                        <TextBlock Text="Pulsanti, menu, interruttori e finestre di dialogo funzionanti."
+                                   TextWrapping="Wrap" />
+
+                        <MenuBar>
+                            <MenuBarItem Title="File">
+                                <MenuFlyoutItem Text="Nuovo" Click="OnSampleMenuClick" />
+                                <MenuFlyoutSeparator />
+                                <MenuFlyoutItem Text="Chiudi" Click="OnCloseClick" />
+                            </MenuBarItem>
+                            <MenuBarItem Title="Vista">
+                                <MenuFlyoutItem Text="Apri la sidebar" Click="OnOpenPaneClick" />
+                                <MenuFlyoutItem Text="Chiudi la sidebar" Click="OnClosePaneClick" />
+                            </MenuBarItem>
+                            <MenuBarItem Title="Guida">
+                                <MenuFlyoutItem Text="Informazioni" Click="OnAboutClick" />
+                            </MenuBarItem>
+                        </MenuBar>
+
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Button Content="Pulsante standard" Click="OnSampleButtonClick" />
+                            <Button Content="Apri un dialogo" Click="OnDialogClick" />
+                            <DropDownButton Content="Menu a tendina">
+                                <DropDownButton.Flyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="Prima voce" Click="OnSampleMenuClick" />
+                                        <MenuFlyoutItem Text="Seconda voce" Click="OnSampleMenuClick" />
+                                    </MenuFlyout>
+                                </DropDownButton.Flyout>
+                            </DropDownButton>
+                        </StackPanel>
+
+                        <ToggleSwitch Header="Interruttore" OnContent="Attivo" OffContent="Disattivo" IsOn="True" />
+                        <CheckBox Content="Casella di selezione" IsChecked="True" />
+                        <ComboBox Header="Menu di scelta" SelectedIndex="0" Width="220" HorizontalAlignment="Left">
+                            <ComboBoxItem Content="Prima opzione" />
+                            <ComboBoxItem Content="Seconda opzione" />
+                            <ComboBoxItem Content="Terza opzione" />
+                        </ComboBox>
+                        <Slider Header="Regolazione" Minimum="0" Maximum="100" Value="45" Width="300" HorizontalAlignment="Left" />
+                        <ProgressBar Value="60" Maximum="100" Width="300" HorizontalAlignment="Left" />
+                        <TextBox Header="Campo di testo" PlaceholderText="Scrivi qui..." Width="300" HorizontalAlignment="Left" />
+
+                        <TextBlock x:Name="StatusText" Text="Pronto." />
+                    </StackPanel>
+
+                    <StackPanel x:Name="SettingsPanel" Spacing="18" Visibility="Collapsed">
+                        <TextBlock Text="Impostazioni" Style="{ThemeResource TitleTextBlockStyle}" />
+                        <TextBlock Text="Le impostazioni della demo modificano soltanto l'aspetto di questa finestra." TextWrapping="Wrap" />
+                        <ToggleSwitch x:Name="DarkThemeSwitch" Header="Tema scuro" Toggled="OnThemeToggled" />
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+        </NavigationView>
+    </Grid>
+</Window>

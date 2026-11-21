@@ -1,0 +1,85 @@
+name: WinUI Essenziale - programma portabile
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'essenziale/**'
+      - '.github/workflows/compila-essenziale.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - name: Recupera progetto
+        uses: actions/checkout@v4
+
+      - name: Prepara .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Compila solo la finestra e i controlli WinUI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = Join-Path $env:GITHUB_WORKSPACE 'programma'
+          dotnet publish essenziale/WinUIEssenziale.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output $out `
+            -p:Platform=x64 `
+            -p:WindowsPackageType=None `
+            -p:WindowsAppSDKSelfContained=true `
+            -p:PublishSingleFile=false `
+            -p:PublishTrimmed=false `
+            -p:PublishReadyToRun=false
+          if ($LASTEXITCODE -ne 0) { throw 'Compilazione fallita.' }
+          $exe = Join-Path $out 'WinUIEssenziale.exe'
+          if (!(Test-Path $exe)) { throw 'Manca WinUIEssenziale.exe' }
+          Get-ChildItem $out | Measure-Object -Property Length -Sum | Out-Host
+
+      - name: Crea ZIP e verifica la presenza dell'eseguibile
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path $env:GITHUB_WORKSPACE 'WinUI_Essenziale.zip'
+          @'
+          WinUI Essenziale - componenti originali Microsoft
+          Estrarre l'intero ZIP in una cartella.
+          Aprire WinUIEssenziale.exe.
+          Non richiede Visual Studio, Python o installazione di SDK.
+          I controlli sono quelli reali del Windows App SDK 2.6.5.
+          Windows 10 non offre tutti gli effetti nativi di Windows 11.
+          Il collaudo visuale resta da eseguire su Windows 10.
+          '@ | Set-Content -LiteralPath 'programma/LEGGIMI.txt' -Encoding utf8
+          Compress-Archive -Path 'programma/*' -DestinationPath $zip -CompressionLevel Optimal
+          if (!(Test-Path $zip)) { throw 'Archivio ZIP assente.' }
+          Add-Type -AssemblyName System.IO.Compression
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+          try {
+            if (!($archive.Entries | Where-Object FullName -eq 'WinUIEssenziale.exe')) { throw 'EXE non presente nello ZIP' }
+            Write-Host "ZIP OK: $([Math]::Round((Get-Item $zip).Length / 1MB, 1)) MB"
+          } finally { $archive.Dispose() }
+
+      - name: Pubblica download diretto
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = 'winui-essenziale'
+          $zip = 'WinUI_Essenziale.zip'
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $zip --repo $env:GITHUB_REPOSITORY --clobber
+          } else {
+            gh release create $tag $zip --repo $env:GITHUB_REPOSITORY --target main --title 'WinUI Essenziale per Windows' --notes 'Finestra WinUI nativa minima; sorgenti nel percorso essenziale. Estrarre ZIP e aprire WinUIEssenziale.exe.'
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Pubblicazione fallita.' }

@@ -1,0 +1,62 @@
+name: Correggi ZIP - cartella principale
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/correggi-cartella-zip.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repack:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: winui-essenziale-leggero
+      ZIP_NAME: WinUI_Essenziale_Leggero.zip
+    steps:
+      - name: Scarica il programma gia' compilato (nessuna ricompilazione)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path input | Out-Null
+          gh release download $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --pattern $env:ZIP_NAME --dir input
+          if ($LASTEXITCODE -ne 0) { throw 'Download del programma fallito' }
+          if (!(Test-Path "input/$env:ZIP_NAME")) { throw 'ZIP sorgente mancante' }
+
+      - name: Crea ZIP con una sola cartella principale
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'WinUI_Essenziale'
+          $folder = Join-Path 'staging' $root
+          New-Item -ItemType Directory -Force -Path $folder | Out-Null
+          Expand-Archive -LiteralPath "input/$env:ZIP_NAME" -DestinationPath $folder -Force
+          if (!(Test-Path (Join-Path $folder 'WinUIEssenziale.exe'))) { throw 'Manca WinUIEssenziale.exe nella cartella principale' }
+          @'
+          WinUI Essenziale - versione con cartella principale.
+          Estrai tutto lo ZIP e apri la cartella WinUI_Essenziale.
+          Avvia WinUIEssenziale.exe.
+          Non serve installare Python o Visual Studio.
+          '@ | Set-Content -LiteralPath (Join-Path $folder 'LEGGIMI.txt') -Encoding utf8
+          Compress-Archive -Path $folder -DestinationPath $env:ZIP_NAME -CompressionLevel Optimal
+          Add-Type -AssemblyName System.IO.Compression
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $PWD $env:ZIP_NAME))
+          try {
+            $paths = @($zip.Entries | ForEach-Object FullName)
+            if (!($paths -contains "$root/WinUIEssenziale.exe")) { throw 'Il programma non e presente nella cartella principale' }
+            if (@($paths | Where-Object { $_ -notmatch '^WinUI_Essenziale/' }).Count -ne 0) { throw 'Ci sono file al di fuori della cartella principale' }
+            Write-Host "Controllo ZIP riuscito: $($paths.Count) elementi, un'unica cartella $root"
+          } finally { $zip.Dispose() }
+          Write-Host "Dimensione ZIP: $([Math]::Round((Get-Item $env:ZIP_NAME).Length / 1MB, 1)) MB"
+
+      - name: Aggiorna il download diretto, stesso nome
+        shell: pwsh
+        run: |
+          gh release upload $env:RELEASE_TAG $env:ZIP_NAME --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Aggiornamento del download fallito' }
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json assets,url

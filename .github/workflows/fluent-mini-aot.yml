@@ -1,0 +1,63 @@
+name: Fluent Mini - versione alleggerita Native AOT
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fluent-mini-aot.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 50
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ZIP_NAME: Fluent_Windows_Lite.zip
+      RELEASE_TAG: fluent-mini-aot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Native AOT - compila e comprimi WinUI originale
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet publish MinimalWinUI/MiniFluent.csproj --configuration Release --runtime win-x64 --self-contained true --output aot-program `
+            -p:Platform=x64 `
+            -p:WindowsPackageType=None `
+            -p:WindowsAppSDKSelfContained=true `
+            -p:PublishAot=true `
+            -p:PublishTrimmed=true `
+            -p:IlcOptimizationPreference=Size `
+            -p:StripSymbols=true
+          if ($LASTEXITCODE -ne 0) { throw "Native AOT non e' compilato: controllare i log." }
+          if (!(Test-Path aot-program/MiniFluent.exe)) { throw "Eseguibile non trovato" }
+          Get-ChildItem aot-program -Recurse -Filter *.pdb -File | Remove-Item -Force
+          @'
+          FLUENT MINI - VERSIONE ALLEGGERITA
+          Estrai tutto lo ZIP e apri MiniFluent.exe.
+          Componenti Microsoft WinUI 3 originali; compilazione Native AOT.
+          Compatibilita' grafica da verificare sul tuo Windows 10.
+          '@ | Set-Content -LiteralPath aot-program/AVVIO.txt -Encoding utf8
+          Get-ChildItem aot-program -Recurse -File | Measure-Object -Property Length -Sum | Select-Object Count,Sum | Format-List
+      - name: Prepara ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path aot-program/* -DestinationPath $env:ZIP_NAME -CompressionLevel Optimal
+          if (!(Test-Path $env:ZIP_NAME)) { throw "ZIP mancante" }
+          Get-Item $env:ZIP_NAME | Select-Object Name,Length | Format-List
+      - name: Pubblica download diretto
+        shell: pwsh
+        run: |
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG $env:ZIP_NAME --repo $env:GITHUB_REPOSITORY --clobber
+          } else {
+            gh release create $env:RELEASE_TAG $env:ZIP_NAME --repo $env:GITHUB_REPOSITORY --target main --title "Fluent Mini - Windows Lite" --notes "App nativa WinUI 3 essenziale compilata Native AOT, senza installazione. Estrarre lo ZIP e avviare MiniFluent.exe. Avvio su Windows 10 non ancora verificato."
+          }
+          if ($LASTEXITCODE -ne 0) { throw "Errore di pubblicazione" }

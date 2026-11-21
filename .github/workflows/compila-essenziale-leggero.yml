@@ -1,0 +1,70 @@
+name: WinUI Essenziale leggero - Native AOT
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/compila-essenziale-leggero.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Compila app nativa WinUI con Native AOT
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet publish essenziale/WinUIEssenziale.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            --output programma-leggero `
+            -p:Platform=x64 `
+            -p:WindowsPackageType=None `
+            -p:WindowsAppSDKSelfContained=true `
+            -p:PublishAot=true `
+            -p:PublishTrimmed=true `
+            -p:IlcOptimizationPreference=Size `
+            -p:StripSymbols=true
+          if ($LASTEXITCODE -ne 0) { throw 'Compilazione Native AOT non riuscita.' }
+          if (!(Test-Path 'programma-leggero/WinUIEssenziale.exe')) { throw 'Eseguibile non trovato' }
+          Get-ChildItem 'programma-leggero' -Recurse -Include *.pdb -File | Remove-Item -Force
+          @'
+          WINUI ESSENZIALE - CONTROLLI ORIGINALI MICROSOFT
+          Estrai tutti i file e apri WinUIEssenziale.exe.
+          Windows 10/11 x64. Nessuna installazione di Python o Visual Studio.
+          L'aspetto su Windows 10 deve ancora essere collaudato.
+          '@ | Set-Content 'programma-leggero/LEGGIMI.txt' -Encoding utf8
+      - name: Archivia e verifica
+        shell: pwsh
+        run: |
+          Compress-Archive -Path 'programma-leggero/*' -DestinationPath 'WinUI_Essenziale_Leggero.zip' -CompressionLevel Optimal
+          Add-Type -AssemblyName System.IO.Compression
+          $a = [System.IO.Compression.ZipFile]::OpenRead((Join-Path $env:GITHUB_WORKSPACE 'WinUI_Essenziale_Leggero.zip'))
+          try {
+            if (!($a.Entries | Where-Object FullName -eq 'WinUIEssenziale.exe')) { throw 'EXE mancante dallo ZIP' }
+          } finally { $a.Dispose() }
+          Write-Host "Dimensione ZIP: $([Math]::Round((Get-Item 'WinUI_Essenziale_Leggero.zip').Length / 1MB, 2)) MB"
+      - name: Pubblica ZIP diretto
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'winui-essenziale-leggero'
+          $zip = 'WinUI_Essenziale_Leggero.zip'
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $zip --repo $env:GITHUB_REPOSITORY --clobber
+          } else {
+            gh release create $tag $zip --repo $env:GITHUB_REPOSITORY --target main --title 'WinUI Essenziale leggero' --notes 'App WinUI con controlli originali Microsoft, Native AOT. Estrai lo ZIP e avvia WinUIEssenziale.exe.'
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Pubblicazione fallita' }

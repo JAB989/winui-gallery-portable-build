@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="MiniFluent.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Fluent Mini">
+
+  <Window.SystemBackdrop>
+    <MicaBackdrop Kind="Base"/>
+  </Window.SystemBackdrop>
+
+  <Grid x:Name="AppRoot" RowSpacing="0">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <!-- Controllo TitleBar originale WinUI; pulsanti di sistema gestiti da Windows -->
+    <TitleBar x:Name="AppTitleBar" Title="Fluent Mini" Subtitle="Controlli originali Microsoft">
+      <TitleBar.IconSource>
+        <FontIconSource Glyph="&#xE80F;"/>
+      </TitleBar.IconSource>
+    </TitleBar>
+
+    <MenuBar Grid.Row="1" Margin="8,0,0,0">
+      <MenuBarItem Title="File">
+        <MenuFlyoutItem Text="Pagina iniziale" Click="GoHome_Click"/>
+        <MenuFlyoutSeparator/>
+        <MenuFlyoutItem Text="Chiudi" Click="Close_Click"/>
+      </MenuBarItem>
+      <MenuBarItem Title="Vista">
+        <MenuFlyoutItem Text="Apri o chiudi barra laterale" Click="TogglePane_Click"/>
+        <MenuFlyoutItem Text="Tema chiaro" Click="LightTheme_Click"/>
+        <MenuFlyoutItem Text="Tema scuro" Click="DarkTheme_Click"/>
+      </MenuBarItem>
+      <MenuBarItem Title="Guida">
+        <MenuFlyoutItem Text="Informazioni" Click="About_Click"/>
+      </MenuBarItem>
+    </MenuBar>
+
+    <NavigationView x:Name="ShellNav"
+                    Grid.Row="2"
+                    PaneDisplayMode="LeftCompact"
+                    IsPaneOpen="False"
+                    IsBackButtonVisible="Collapsed"
+                    IsSettingsVisible="True"
+                    SelectionChanged="ShellNav_SelectionChanged">
+      <NavigationView.MenuItems>
+        <NavigationViewItem Content="Home" Icon="Home" Tag="home"/>
+        <NavigationViewItem Content="Controlli" Icon="AllApps" Tag="controls"/>
+        <NavigationViewItem Content="Finestre e menu" Icon="Document" Tag="windows"/>
+      </NavigationView.MenuItems>
+
+      <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Padding="30,22,30,34" MinWidth="460">
+
+          <StackPanel x:Name="HomeView" Spacing="18">
+            <TextBlock Text="Windows UI" Style="{StaticResource TitleTextBlockStyle}"/>
+            <TextBlock Text="Una finestra essenziale con i veri componenti Microsoft WinUI 3."
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       TextWrapping="Wrap"/>
+            <Border Padding="24" CornerRadius="12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+              <StackPanel Spacing="14">
+                <TextBlock Text="Componenti Fluent" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                <TextBlock Text="Barra del titolo nativa, navigazione, menu e dialoghi. Nessuna interfaccia ricostruita in PyQt."
+                           TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button Content="Apri un dialogo" Click="About_Click"/>
+                  <DropDownButton Content="Menu">
+                    <DropDownButton.Flyout>
+                      <MenuFlyout>
+                        <MenuFlyoutItem Text="Mostra notifica" Click="Notify_Click"/>
+                        <MenuFlyoutItem Text="Impostazioni" Click="Settings_Click"/>
+                      </MenuFlyout>
+                    </DropDownButton.Flyout>
+                  </DropDownButton>
+                </StackPanel>
+                <InfoBar x:Name="HomeNotification" IsOpen="False" IsClosable="True"
+                         Severity="Informational" Title="Notifica WinUI"
+                         Message="Questo è il componente InfoBar originale Microsoft."/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel x:Name="ControlsView" Visibility="Collapsed" Spacing="18">
+            <TextBlock Text="Controlli" Style="{StaticResource TitleTextBlockStyle}"/>
+            <TextBlock Text="Esempi dei controlli originali del Windows App SDK."
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <Border Padding="24" CornerRadius="12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+              <StackPanel Spacing="18">
+                <ToggleSwitch Header="Interruttore" OnContent="Attivo" OffContent="Disattivo"/>
+                <CheckBox Content="Casella di selezione"/>
+                <StackPanel Spacing="6">
+                  <TextBlock Text="Slider"/>
+                  <Slider Minimum="0" Maximum="100" Value="45" Width="280" HorizontalAlignment="Left"/>
+                </StackPanel>
+                <StackPanel Spacing="6">
+                  <TextBlock Text="TextBox"/>
+                  <TextBox PlaceholderText="Scrivi qui..." Width="300" HorizontalAlignment="Left"/>
+                </StackPanel>
+                <ComboBox Header="Scelta" SelectedIndex="0" Width="230" HorizontalAlignment="Left">
+                  <ComboBoxItem Content="Prima opzione"/>
+                  <ComboBoxItem Content="Seconda opzione"/>
+                  <ComboBoxItem Content="Terza opzione"/>
+                </ComboBox>
+                <Button Content="Apri il dialogo nativo" HorizontalAlignment="Left" Click="About_Click"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel x:Name="WindowsView" Visibility="Collapsed" Spacing="18">
+            <TextBlock Text="Finestre e menu" Style="{StaticResource TitleTextBlockStyle}"/>
+            <TextBlock Text="I controlli di sistema rimangono gestiti da Windows."
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <Border Padding="24" CornerRadius="12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+              <StackPanel Spacing="14">
+                <TextBlock Text="Menu contestuale e popup" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                <DropDownButton Content="Apri il menu" HorizontalAlignment="Left">
+                  <DropDownButton.Flyout>
+                    <MenuFlyout>
+                      <MenuFlyoutItem Text="Home" Click="GoHome_Click"/>
+                      <MenuFlyoutSeparator/>
+                      <MenuFlyoutItem Text="Informazioni" Click="About_Click"/>
+                    </MenuFlyout>
+                  </DropDownButton.Flyout>
+                </DropDownButton>
+                <Button Content="Apri ContentDialog" HorizontalAlignment="Left" Click="About_Click"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel x:Name="SettingsView" Visibility="Collapsed" Spacing="18">
+            <TextBlock Text="Impostazioni" Style="{StaticResource TitleTextBlockStyle}"/>
+            <TextBlock Text="Preferenze grafiche" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <Border Padding="24" CornerRadius="12"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+              <StackPanel Spacing="16">
+                <ToggleSwitch x:Name="ThemeSwitch" Header="Tema scuro" OffContent="Chiaro" OnContent="Scuro" Toggled="ThemeSwitch_Toggled"/>
+                <TextBlock Text="La cornice, i menu e i controlli seguono i temi WinUI."
+                           TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Grid>
+      </ScrollViewer>
+    </NavigationView>
+  </Grid>
+</Window>

@@ -13,7 +13,7 @@ permissions:
 jobs:
   crea-programma:
     name: Compila sorgenti Microsoft e pubblica ZIP
-    runs-on: windows-2025
+    runs-on: windows-2022
     timeout-minutes: 90
 
     steps:
@@ -44,6 +44,13 @@ jobs:
             </packageSources>
           </configuration>
           '@ | Set-Content -LiteralPath $configPath -Encoding utf8
+
+      - name: Verifica Windows SDK 22621 installato
+        shell: pwsh
+        run: |
+          $platform = 'C:\Program Files (x86)\Windows Kits\10\Platforms\UAP\10.0.22621.0\Platform.xml'
+          if (!(Test-Path -LiteralPath $platform)) { throw "Windows SDK 22621 Platform.xml non disponibile: $platform" }
+          Write-Host "Windows SDK 22621 presente."
 
       - name: Compila WinUI Gallery portabile - Windows 10 x64
         shell: pwsh

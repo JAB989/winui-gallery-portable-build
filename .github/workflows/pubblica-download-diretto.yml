@@ -1,0 +1,58 @@
+name: Pubblica download diretto WinUI Gallery
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pubblica-download-diretto.yml'
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  download-diretto:
+    name: Crea una release con ZIP scaricabile direttamente
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ARCHIVE: WinUI3_Gallery_Microsoft_v3.0.4_Portabile_Win10_x64.zip
+      RELEASE_TAG: winui-gallery-v3.0.4-portable
+      ARTIFACT: WinUI3_Gallery_Microsoft_v3.0.4_Portabile_Win10_x64
+    steps:
+      - name: Scarica il programma gia' compilato
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app
+          gh run download 44917382005 --repo "${GITHUB_REPOSITORY}" --name "${ARTIFACT}" --dir app
+          test -f app/WinUIGallery.exe
+          echo "Eseguibile originale verificato"
+
+      - name: Crea lo ZIP portabile completo
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd app && zip -q -r -9 "../${ARCHIVE}" .)
+          test -s "${ARCHIVE}"
+          unzip -tq "${ARCHIVE}"
+          unzip -Z1 "${ARCHIVE}" | grep -x 'WinUIGallery.exe'
+          ls -lh "${ARCHIVE}"
+          sha256sum "${ARCHIVE}"
+
+      - name: Pubblica il file come download diretto (GitHub Release)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" "${ARCHIVE}" --repo "${GITHUB_REPOSITORY}" --clobber
+          else
+            gh release create "${RELEASE_TAG}" "${ARCHIVE}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target main \
+              --title "WinUI 3 Gallery Microsoft 3.0.4 - ZIP portabile Windows 10 x64" \
+              --notes "Build Windows x64 dai sorgenti originali Microsoft WinUI-Gallery v3.0.4 (licenza MIT). Estrarre l'intero ZIP e aprire WinUIGallery.exe. Non richiede Visual Studio o Python sul PC. Avvio grafico su Windows 10 non verificato."
+          fi
+          gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --json url,assets
